@@ -41,6 +41,24 @@
 (define (eval-under-env e env)
   (cond [(mul461-var? e) 
          (envlookup env (mul461-var-name e))]
+        [(or (mul461-int? e) (mul461-bool? e))
+         e]
+        [(mul461--? e)
+         (let ([v1 (eval-under-env (mul461---e1 e) env)]
+               [v2 (eval-under-env (mul461---e2 e) env)])
+           (if (and (mul461-int? v1)
+                    (mul461-int? v2))
+               (mul461-int (- (mul461-int-value v1) 
+                              (mul461-int-value v2)))
+               (error "mul461-- applied to non-integer")))]
+        [(mul461-*? e)
+         (let ([v1 (eval-under-env (mul461-*-e1 e) env)]
+               [v2 (eval-under-env (mul461-*-e2 e) env)])
+           (if (and (mul461-int? v1)
+                    (mul461-int? v2))
+               (mul461-int (* (mul461-int-value v1) 
+                              (mul461-int-value v2)))
+               (error "mul461-* applied to non-integer")))]
         [(mul461-+? e) 
          (let ([v1 (eval-under-env (mul461-+-e1 e) env)]
                [v2 (eval-under-env (mul461-+-e2 e) env)])
@@ -49,43 +67,9 @@
                (mul461-int (+ (mul461-int-value v1) 
                               (mul461-int-value v2)))
                (error "mul461-+ applied to non-integer")))]
-        ;; CHANGE add more cases here
-        [#t (error (format "bad mul461 expression: ~v" e))]))
-
-
-;; Do NOT change
-(define (eval-exp e)
-  (cond [(or (mul461-int? e) (mul461-bool? e))
-         e]
-        [(mul461-var? e)
-         (eval-under-env e null)]
-        [(mul461-+? e)
-         (let ([v1 (eval-exp (mul461-+-e1 e))]
-               [v2 (eval-exp (mul461-+-e2 e))])
-           (if (and (mul461-int? v1)
-                    (mul461-int? v2))
-               (mul461-int (+ (mul461-int-value v1) 
-                              (mul461-int-value v2)))
-               (error "mul461-+ applied to non-integer")))]
-        [(mul461--? e)
-         (let ([v1 (eval-exp (mul461---e1 e))]
-               [v2 (eval-exp (mul461---e2 e))])
-           (if (and (mul461-int? v1)
-                    (mul461-int? v2))
-               (mul461-int (- (mul461-int-value v1) 
-                              (mul461-int-value v2)))
-               (error "mul461-- applied to non-integer")))]
-        [(mul461-*? e)
-         (let ([v1 (eval-exp (mul461-*-e1 e))]
-               [v2 (eval-exp (mul461-*-e2 e))])
-           (if (and (mul461-int? v1)
-                    (mul461-int? v2))
-               (mul461-int (* (mul461-int-value v1) 
-                              (mul461-int-value v2)))
-               (error "mul461-* applied to non-integer")))]
         [(mul461-<? e)
-         (let ([v1 (eval-exp (mul461-<-e1 e))]
-               [v2 (eval-exp (mul461-<-e2 e))])
+         (let ([v1 (eval-under-env (mul461-<-e1 e) env)]
+               [v2 (eval-under-env (mul461-<-e2 e) env)])
            (if (and (mul461-int? v1)
                     (mul461-int? v2))
                (if (< (mul461-int-value v1) (mul461-int-value v2))
@@ -93,17 +77,17 @@
                    (mul461-bool #f))
                (error "mul461-< applied to non-integer")))]
         [(mul461-=? e)
-         (let ([v1 (eval-exp (mul461-=-e1 e))]
-               [v2 (eval-exp (mul461-=-e2 e))])
+         (let ([v1 (eval-under-env (mul461-=-e1 e) env)]
+               [v2 (eval-under-env (mul461-=-e2 e) env)])
            (if (and (mul461-int? v1)
                     (mul461-int? v2))
-               (if (= (mul461-int-value v1) (mul461-int-value v2))
+               (if (= (mul461-int-value v1) (mul461-int-value v2)) 
                    (mul461-bool #t)
                    (mul461-bool #f))
                (error "mul461-= applied to non-integer")))]
         [(mul461-and? e)
-         (let ([v1 (eval-exp (mul461-and-e1 e))]
-               [v2 (eval-exp (mul461-and-e2 e))])
+         (let ([v1 (eval-under-env (mul461-and-e1 e) env)]
+               [v2 (eval-under-env (mul461-and-e2 e) env)])
            (if (and (mul461-bool? v1)
                     (mul461-bool? v2))
                (if (and (mul461-bool-value v1)
@@ -112,8 +96,8 @@
                    (mul461-bool #f))
                (error "mul461-and applied to non-boolean")))]
         [(mul461-or? e)
-         (let ([v1 (eval-exp (mul461-or-e1 e))]
-               [v2 (eval-exp (mul461-or-e2 e))])
+         (let ([v1 (eval-under-env (mul461-or-e1 e) env)]
+               [v2 (eval-under-env (mul461-or-e2 e) env)])
            (if (and (mul461-bool? v1)
                     (mul461-bool? v2))
                (if (or (mul461-bool-value v1)
@@ -122,26 +106,44 @@
                    (mul461-bool #f))
                (error "mul461-or applied to non-boolean")))]
         [(mul461-not? e)
-         (let ([v1 (eval-exp (mul461-not-e e))])
+         (let ([v1 (eval-under-env (mul461-not-e e) env)])
            (if (mul461-bool? v1)
                (if (mul461-bool-value v1)
                    (mul461-bool #f)
                    (mul461-bool #t))
                (error "mul461-not applied to non-boolean")))]
         [(mul461-if? e)
-         (let ([v1 (eval-exp (mul461-if-e1 e))])
+         (let ([v1 (eval-under-env (mul461-if-e1 e) env)])
            (if (mul461-bool? v1)
                (if (mul461-bool-value v1)
                    (mul461-if-e2 e)
                    (mul461-if-e3 e))
                (error "mul461-if applied to non-boolean")))]
         [(mul461-let? e)
-  )
-)
+         (let* ([v (eval-under-env (mul461-let-e e) env)]
+                [enviroment (cons (cons (mul461-let-name e) v) env) ])
+           (eval-under-env (mul461-let-body e) enviroment))]
+        ;; CHANGE add more cases here
+        [#t (error (format "bad mul461 expression: ~v" e))]))
+
+
+;; Do NOT change
+(define (eval-exp e)
+  (eval-under-env e null))
 
 
 ;; CHANGE and implement makelet* and makefactorial
 (define (makelet* t e)
-  (error "todo: makelet*"))
+  (if (list? t)
+      (if (null? t)
+          (let* ([v (eval-under-env (cdr (car (t))) (cdr t)) ]
+                 [env (cons (cons (car (car (t))) v) (cdr t))])
+            (makelet* env e))
+          (eval-under-env e t))
+      (error "t is not a list")))
 (define (makefactorial n)
-  (error "todo: makefactorial"))
+  (if ( = n 1)
+      (mul461-int 1)
+      (mul461-* (mul461-int n) (makefactorial (- n 1)) )
+      )
+  )
